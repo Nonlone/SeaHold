@@ -12,17 +12,17 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 
-import com.seahold.dao.annotation.Table;
+import com.seahold.annotation.DBTable;
 import com.seahold.dao.connection.ConnectionPooling;
 import com.seahold.dao.connection.impl.DefaultConnectionFactory;
-import com.seahold.dao.filler.VoFiller;
-import com.seahold.dao.filler.impl.DefaultVoFiller;
-import com.seahold.dao.sql.SqlMaker;
-import com.seahold.dao.sql.impl.Pager;
-import com.seahold.dao.sql.impl.SqlC;
-import com.seahold.dao.utils.StringUtils;
-import com.seahold.dao.wrapper.VoWrapper;
-import com.seahold.dao.wrapper.impl.DefaultVoWrapper;
+import com.seahold.filler.VoFiller;
+import com.seahold.filler.impl.DefaultVoFiller;
+import com.seahold.sql.SqlMaker;
+import com.seahold.sql.impl.Pager;
+import com.seahold.sql.impl.SqlC;
+import com.seahold.utils.StringUtils;
+import com.seahold.wrapper.VoWrapper;
+import com.seahold.wrapper.impl.DefaultVoWrapper;
 
 /**
  * Dao 默认入口类，用静态方法建立Dao对象
@@ -30,17 +30,7 @@ import com.seahold.dao.wrapper.impl.DefaultVoWrapper;
  * @author Ezir
  * 
  */
-public class Dao implements DaoFunc {
-
-	private final static Logger logger = Logger.getLogger(Dao.class);
-	/**
-	 * 连接池接口
-	 */
-	private static ConnectionPooling connPool = new DefaultConnectionFactory();
-	/**
-	 * 核心接口，可替换
-	 */
-	private static DaoFunc daoFunc = null;
+public class Dao<T> implements DaoFunc {
 
 	/**
 	 * 初始化函数
@@ -82,7 +72,7 @@ public class Dao implements DaoFunc {
 	public static Dao getInstance(Class<?> classOfT) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		Dao dao = new Dao();
 		dao.voClass = classOfT;
-		Table table = dao.voClass.getAnnotation(Table.class);
+		DBTable table = dao.voClass.getAnnotation(DBTable.class);
 		if (table != null) {
 			if (!StringUtils.isEmpty(table.voWrapper())) {
 				dao.voWrapper = (VoWrapper) Class.forName(table.voWrapper()).newInstance();
@@ -108,7 +98,7 @@ public class Dao implements DaoFunc {
 	public static Dao getInstance(Class<?> classOfT, Connection conn) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
 		Dao dao = new Dao();
 		dao.voClass = classOfT;
-		Table table = dao.voClass.getAnnotation(Table.class);
+		DBTable table = dao.voClass.getAnnotation(DBTable.class);
 		if (table != null) {
 			if (!StringUtils.isEmpty(table.voWrapper())) {
 				dao.voWrapper = (VoWrapper) Class.forName(table.voWrapper()).newInstance();

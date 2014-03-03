@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.json.JSONObject;
 
-import com.seahold.dao.sql.SqlMaker;
+import com.seahold.sql.SqlMaker;
 /**
  * Dao 对应功能函数
  * @author Ezir
