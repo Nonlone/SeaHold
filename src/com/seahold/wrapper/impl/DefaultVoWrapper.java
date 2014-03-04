@@ -29,16 +29,10 @@ import com.seahold.wrapper.VoWrapper;
  */
 public class DefaultVoWrapper implements VoWrapper {
 
-	private final static Logger logger = Logger.getLogger(DefaultVoWrapper.class);
 
 	@SuppressWarnings("unchecked")
-	public <T> List<T> wrapResultSet(String className, ResultSet rs) {
-		try {
-			return (List<T>) this.wrapResultSet(rs, Class.forName(className));
-		} catch (ClassNotFoundException e) {
-			logger.error(e.getMessage(), e);
-			return null;
-		}
+	public <T> List<T> wrapResultSet(ResultSet rs,String className) {
+		return (List<T>) this.wrapResultSet(rs, Class.forName(className));
 	}
 
 	@SuppressWarnings("unchecked")
