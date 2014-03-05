@@ -31,34 +31,7 @@ import com.seahold.wrapper.impl.DefaultVoWrapper;
  * 
  */
 public class Dao<T> implements DaoFunc {
-
-	/**
-	 * 初始化函数
-	 * 
-	 * @param connPool
-	 */
-	public static void init(ConnectionPooling connPool) {
-		if (connPool != null) {
-			Dao.connPool = connPool;
-		}
-	}
-
-	public static void init(DaoFunc daoFunc) {
-		if (daoFunc != null) {
-			Dao.daoFunc = daoFunc;
-		}
-	}
-
-	/**
-	 * 初始化函数
-	 * 
-	 * @param connPool
-	 * @param daoFunc
-	 */
-	public static void init(ConnectionPooling connPool, DaoFunc daoFunc) {
-		init(connPool);
-		init(daoFunc);
-	}
+	
 
 	/**
 	 * Dao 构造器 ，默认从池中获得连接conn
