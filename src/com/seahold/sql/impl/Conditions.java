@@ -131,7 +131,7 @@ public class Conditions {
 	private Conditions opera(Operator opera, Class<?> classOfT, String fieldName) {
 		DBTable table = classOfT.getAnnotation(DBTable.class);
 		boolean checkFlag = false;
-		if (table != null && !table.isAutoFill()) {
+		if (table != null && !(table.tableType()==DBTable.TableType.STRICT)) {
 			for (Field field : classOfT.getDeclaredFields()) {
 				DBField dbf = (DBField) field.getAnnotation(DBField.class);
 				if (dbf != null && dbf.fieldName().length() > 0) {
