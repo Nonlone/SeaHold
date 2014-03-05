@@ -1,6 +1,7 @@
 package com.seahold.dao;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,6 +13,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 
+import com.lunjar.mjorm.persistance.BaseVO;
 import com.seahold.annotation.DBTable;
 import com.seahold.dao.connection.ConnectionPooling;
 import com.seahold.dao.connection.impl.DefaultConnectionFactory;
@@ -32,58 +34,6 @@ import com.seahold.wrapper.impl.DefaultVoWrapper;
  */
 public class Dao<T> implements DaoFunc {
 	
-
-	/**
-	 * Dao 构造器 ，默认从池中获得连接conn
-	 * 
-	 * @param classOfT
-	 * @return
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 */
-	public static Dao getInstance(Class<?> classOfT) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-		Dao dao = new Dao();
-		dao.voClass = classOfT;
-		DBTable table = dao.voClass.getAnnotation(DBTable.class);
-		if (table != null) {
-			if (!StringUtils.isEmpty(table.voWrapper())) {
-				dao.voWrapper = (VoWrapper) Class.forName(table.voWrapper()).newInstance();
-			}
-			if (!StringUtils.isEmpty(table.voFiller())) {
-				dao.voFiller = (VoFiller) Class.forName(table.voFiller()).newInstance();
-			}
-		}
-		dao.conn = connPool.getConnection();
-		return dao;
-	}
-
-	/**
-	 * Dao 构造器 ，外部放入连接
-	 * 
-	 * @param classOfT
-	 * @param conn
-	 * @return
-	 * @throws InstantiationException
-	 * @throws IllegalAccessException
-	 * @throws ClassNotFoundException
-	 */
-	public static Dao getInstance(Class<?> classOfT, Connection conn) throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-		Dao dao = new Dao();
-		dao.voClass = classOfT;
-		DBTable table = dao.voClass.getAnnotation(DBTable.class);
-		if (table != null) {
-			if (!StringUtils.isEmpty(table.voWrapper())) {
-				dao.voWrapper = (VoWrapper) Class.forName(table.voWrapper()).newInstance();
-			}
-			if (!StringUtils.isEmpty(table.voFiller())) {
-				dao.voFiller = (VoFiller) Class.forName(table.voFiller()).newInstance();
-			}
-		}
-		dao.conn = conn;
-		return dao;
-	}
-
 	/**
 	 * 数据表vo类
 	 */
@@ -91,7 +41,7 @@ public class Dao<T> implements DaoFunc {
 	/**
 	 * 数据库连接
 	 */
-	private Connection conn;
+	private Connection connection;
 	/**
 	 * vo类到PreparedStatement填充器
 	 */
@@ -101,28 +51,34 @@ public class Dao<T> implements DaoFunc {
 	 */
 	private VoWrapper voWrapper = new DefaultVoWrapper();
 
+	/**
+	 * 构造方法，传入connection
+	 * @param conn
+	 */
+	public Dao(Connection conn){
+		voClass = (Class<?>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
+		this.connection = conn;
+	}
+	
 	public Class<?> getVoClass() {
 		return voClass;
 	}
 
 	public Connection getConn() {
-		return conn;
+		return connection;
 	}
-
+	
+	
 	@Override
 	public int insert(Object entity) throws IllegalArgumentException, SQLException, IllegalAccessException, InvocationTargetException{
 		if (entity == null) {
 			return 0;
 		}
-		if (daoFunc != null) {
-			return daoFunc.insert(entity);
-		} else {
-			SqlC sqlC = SqlC.insert(voClass);
-			PreparedStatement pstmt = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
-			int result = pstmt.executeUpdate();
-			pstmt.close();
-			return result;
-		}
+		SqlC sqlC = SqlC.insert(voClass);
+		PreparedStatement pstmt = voFiller.getPreparedStatement(sqlC.getSql(), entity);
+		int result = pstmt.executeUpdate();
+		pstmt.close();
+		return result;
 	}
 
 	@Override
@@ -130,30 +86,25 @@ public class Dao<T> implements DaoFunc {
 		if (entity == null || entity.isEmpty()) {
 			return 0;
 		}
-		if (daoFunc != null) {
-			return daoFunc.insert(entity);
-		} else {
-
-			SqlC sqlC = SqlC.insert(voClass);
-			conn.setAutoCommit(false);
-			List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
-			List<int[]> resultList = new ArrayList<int[]>();
-			for(PreparedStatement pstmt:pstmtList){
-				int[] resultNode = pstmt.executeBatch();
-				resultList.add(resultNode);
-			}
-			int result = 0;
-			for(int[] resultNode:resultList){
-				for (int i : resultNode) {
-					result += i;
-				}
-			}
-			conn.setAutoCommit(true);
-			for(PreparedStatement pstms:pstmtList){
-				pstms.close();
-			}
-			return result;
+		SqlC sqlC = SqlC.insert(voClass);
+		connection.setAutoCommit(false);
+		List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
+		List<int[]> resultList = new ArrayList<int[]>();
+		for(PreparedStatement pstmt:pstmtList){
+			int[] resultNode = pstmt.executeBatch();
+			resultList.add(resultNode);
 		}
+		int result = 0;
+		for(int[] resultNode:resultList){
+			for (int i : resultNode) {
+				result += i;
+			}
+		}
+		connection.setAutoCommit(true);
+		for(PreparedStatement pstms:pstmtList){
+			pstms.close();
+		}
+		return result;
 	}
 
 	@Override
