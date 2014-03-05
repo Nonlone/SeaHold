@@ -27,7 +27,7 @@ public interface VoFiller {
 	 * @throws IllegalAccessException 
 	 * @throws IllegalArgumentException 
 	 */
-	public List<PreparedStatement> getPreparedStatement(String sql,Collection<?> entity) throws SQLException, IllegalArgumentException, IllegalAccessException, InvocationTargetException;
+	public List<PreparedStatement> getPreparedStatement(Connection conn,String sql,Collection<?> entity) throws SQLException, IllegalArgumentException, IllegalAccessException, InvocationTargetException;
 	/**
 	 * 实例填充器，填充单个实体到sql语句中
 	 * @param sqlMaker
@@ -38,7 +38,7 @@ public interface VoFiller {
 	 * @throws IllegalAccessException 
 	 * @throws IllegalArgumentException 
 	 */
-	public PreparedStatement getPreparedStatement(String sql,Object entity) throws SQLException, IllegalArgumentException, IllegalAccessException, InvocationTargetException;
+	public PreparedStatement getPreparedStatement(Connection conn,String sql,Object entity) throws SQLException, IllegalArgumentException, IllegalAccessException, InvocationTargetException;
 	/**
 	 * Sql 包装器，包装Configuration Json到表名
 	 * @param sql

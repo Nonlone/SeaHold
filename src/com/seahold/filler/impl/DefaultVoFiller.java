@@ -124,15 +124,15 @@ public class DefaultVoFiller implements VoFiller {
 		return pstmt;
 	}
 
-	 public String getFilledSql(String sql,JSONObject confjson){
+	 public String getFilledSql(String sql,Map<String,String> configMap){
 		//修正sql，替换动态表名
 		String tableRegExp = "\\$\\{[^}]+\\}";
 		Pattern pattern = Pattern.compile(tableRegExp);
 		Matcher matcher = pattern.matcher(sql);
 		while (matcher.find()) {
 			String keyName = getElementForTableName(matcher.group());			
-			if(confjson.has(keyName)){
-				sql = sql.replace(matcher.group(), confjson.getString(keyName));
+			if(configMap.containsKey(keyName)){
+				sql = sql.replace(matcher.group(), configMap.get(keyName));
 				matcher = pattern.matcher(sql);
 			}
 		}
