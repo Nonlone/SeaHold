@@ -39,11 +39,4 @@ public interface VoFiller {
 	 * @throws IllegalArgumentException 
 	 */
 	public PreparedStatement getPreparedStatement(Connection conn,String sql,Object entity) throws SQLException, IllegalArgumentException, IllegalAccessException, InvocationTargetException;
-	/**
-	 * Sql 包装器，包装Configuration Json到表名
-	 * @param sql
-	 * @param confjson
-	 * @return
-	 */
-	public String getFilledSql(String sql,Map<String,String> configMap);
 }

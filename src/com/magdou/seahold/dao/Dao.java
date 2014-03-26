@@ -9,12 +9,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-
+import java.util.Map;
 
 import javax.sql.DataSource;
 
 import com.magdou.seahold.annotation.DBTable;
+import com.magdou.seahold.exception.DataSourceNullException;
 import com.magdou.seahold.filler.VoFiller;
 import com.magdou.seahold.filler.impl.DefaultVoFiller;
 import com.magdou.seahold.sql.SqlMaker;
@@ -31,7 +31,7 @@ import com.magdou.seahold.wrapper.impl.DefaultVoWrapper;
  * 
  */
 public class Dao<T> implements DaoFunc {
-	
+
 	/**
 	 * 数据表vo类
 	 */
@@ -51,17 +51,21 @@ public class Dao<T> implements DaoFunc {
 
 	/**
 	 * 构造方法，传入connection
+	 * 
 	 * @param conn
+	 * @throws DataSourceNullException
 	 */
-	public Dao(DataSource dataSource){
+	public Dao(DataSource dataSource) throws DataSourceNullException {
 		voClass = (Class<?>) ((ParameterizedType) getClass().getGenericSuperclass()).getActualTypeArguments()[0];
+		if (dataSource == null)
+			throw new DataSourceNullException();
 		this.dataSource = dataSource;
 	}
-	
+
 	public Class<?> getVoClass() {
 		return voClass;
 	}
-	
+
 	public DataSource getDataSource() {
 		return dataSource;
 	}
@@ -71,14 +75,16 @@ public class Dao<T> implements DaoFunc {
 	}
 
 	@Override
-	public int insert(Object entity) throws IllegalArgumentException, SQLException, IllegalAccessException, InvocationTargetException{
+	public int insert(Object entity) throws IllegalArgumentException, SQLException, IllegalAccessException, InvocationTargetException {
 		if (entity == null) {
 			return 0;
 		}
+		Connection connection = dataSource.getConnection();
 		SqlC sqlC = SqlC.insert(voClass);
-		PreparedStatement pstmt = voFiller.getPreparedStatement(dataSource.getConnection() , sqlC.getSql(), entity);
+		PreparedStatement pstmt = voFiller.getPreparedStatement(connection, sqlC.getSql(), entity);
 		int result = pstmt.executeUpdate();
 		pstmt.close();
+		connection.close();
 		return result;
 	}
 
@@ -88,23 +94,25 @@ public class Dao<T> implements DaoFunc {
 			return 0;
 		}
 		SqlC sqlC = SqlC.insert(voClass);
+		Connection connection = dataSource.getConnection();
 		connection.setAutoCommit(false);
-		List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
+		List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(connection, sqlC.getSql(), entity);
 		List<int[]> resultList = new ArrayList<int[]>();
-		for(PreparedStatement pstmt:pstmtList){
+		for (PreparedStatement pstmt : pstmtList) {
 			int[] resultNode = pstmt.executeBatch();
 			resultList.add(resultNode);
 		}
 		int result = 0;
-		for(int[] resultNode:resultList){
+		for (int[] resultNode : resultList) {
 			for (int i : resultNode) {
 				result += i;
 			}
 		}
 		connection.setAutoCommit(true);
-		for(PreparedStatement pstms:pstmtList){
+		for (PreparedStatement pstms : pstmtList) {
 			pstms.close();
 		}
+		connection.close();
 		return result;
 	}
 
@@ -113,15 +121,13 @@ public class Dao<T> implements DaoFunc {
 		if (entity == null) {
 			return 0;
 		}
-		if (daoFunc != null) {
-			return daoFunc.update(entity);
-		} else {
-			SqlC sqlC = SqlC.update(voClass);
-			PreparedStatement pstmt = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
-			int result = pstmt.executeUpdate();
-			pstmt.close();
-			return result;
-		}
+		Connection connection = dataSource.getConnection();
+		SqlC sqlC = SqlC.update(voClass);
+		PreparedStatement pstmt = voFiller.getPreparedStatement(connection, sqlC.getSql(), entity);
+		int result = pstmt.executeUpdate();
+		pstmt.close();
+		connection.close();
+		return result;
 	}
 
 	@Override
@@ -129,29 +135,27 @@ public class Dao<T> implements DaoFunc {
 		if (entity == null || entity.isEmpty()) {
 			return 0;
 		}
-		if (daoFunc != null) {
-			return daoFunc.update(entity);
-		} else {
-			SqlC sqlC = SqlC.update(voClass);
-			conn.setAutoCommit(false);
-			List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
-			List<int[]> resultList = new ArrayList<int[]>();
-			for(PreparedStatement pstmt:pstmtList){
-				int[] resultNode = pstmt.executeBatch();
-				resultList.add(resultNode);
-			}
-			int result = 0;
-			for(int[] resultNode:resultList){
-				for (int i : resultNode) {
-					result += i;
-				}
-			}
-			conn.setAutoCommit(true);
-			for(PreparedStatement pstmt:pstmtList){
-				pstmt.close();
-			}
-			return result;
+		Connection connection = dataSource.getConnection();
+		SqlC sqlC = SqlC.update(voClass);
+		connection.setAutoCommit(false);
+		List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(connection, sqlC.getSql(), entity);
+		List<int[]> resultList = new ArrayList<int[]>();
+		for (PreparedStatement pstmt : pstmtList) {
+			int[] resultNode = pstmt.executeBatch();
+			resultList.add(resultNode);
 		}
+		int result = 0;
+		for (int[] resultNode : resultList) {
+			for (int i : resultNode) {
+				result += i;
+			}
+		}
+		connection.setAutoCommit(true);
+		for (PreparedStatement pstmt : pstmtList) {
+			pstmt.close();
+		}
+		connection.close();
+		return result;
 	}
 
 	@Override
@@ -159,15 +163,13 @@ public class Dao<T> implements DaoFunc {
 		if (entity == null) {
 			return 0;
 		}
-		if (daoFunc != null) {
-			return daoFunc.delete(entity);
-		} else {
-			SqlC sqlC = SqlC.delete(voClass);
-			PreparedStatement pstmt = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
-			int result = pstmt.executeUpdate();
-			pstmt.close();
-			return result;
-		}
+		Connection connection = dataSource.getConnection();
+		SqlC sqlC = SqlC.delete(voClass);
+		PreparedStatement pstmt = voFiller.getPreparedStatement(connection, sqlC.getSql(), entity);
+		int result = pstmt.executeUpdate();
+		pstmt.close();
+		connection.close();
+		return result;
 	}
 
 	@Override
@@ -175,433 +177,377 @@ public class Dao<T> implements DaoFunc {
 		if (entity == null || entity.isEmpty()) {
 			return 0;
 		}
-		if (daoFunc != null) {
-			return daoFunc.delete(entity);
-		} else {
-			SqlC sqlC = SqlC.delete(voClass);
-			conn.setAutoCommit(false);
-			List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(conn, sqlC.getSql(), entity);
-			List<int[]> resultList = new ArrayList<int[]>();
-			for(PreparedStatement pstmt:pstmtList){
-				int[] resultNode = pstmt.executeBatch();
-				resultList.add(resultNode);
+		Connection connection = dataSource.getConnection();
+		SqlC sqlC = SqlC.delete(voClass);
+		connection.setAutoCommit(false);
+		List<PreparedStatement> pstmtList = voFiller.getPreparedStatement(connection, sqlC.getSql(), entity);
+		List<int[]> resultList = new ArrayList<int[]>();
+		for (PreparedStatement pstmt : pstmtList) {
+			int[] resultNode = pstmt.executeBatch();
+			resultList.add(resultNode);
+		}
+		int result = 0;
+		for (int[] resultNode : resultList) {
+			for (int i : resultNode) {
+				result += i;
 			}
-			int result = 0;
-			for(int[] resultNode:resultList){
-				for (int i : resultNode) {
-					result += i;
-				}
+		}
+		connection.setAutoCommit(true);
+		for (PreparedStatement pstmt : pstmtList) {
+			pstmt.close();
+		}
+		connection.close();
+		return result;
+	}
+
+	@Override
+	public <T> T querySingle(SqlMaker sqlMaker) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(sqlMaker.getSql());
+			rs = pstmt.executeQuery();
+			if (rs != null) {
+				return voWrapper.wrapResultSetSingle(rs, voClass);
+			} else {
+				return null;
 			}
-			conn.setAutoCommit(true);
-			for(PreparedStatement pstmt:pstmtList){
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
 				pstmt.close();
-			}
-			return result;
-			
-		}
-	}
-
-	@Override
-	public <T> T querySingle(SqlMaker sqlMaker) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sqlMaker);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(sqlMaker.getSql());
-				rs = pstmt.executeQuery();
-				if(rs != null ){
-					return voWrapper.wrapResultSetSingle(rs, voClass);
-				}else{
-					return null;
-				}				
+				conn.close();
 			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
+				throw new SQLException(e);
 			}
 		}
 	}
 
 	@Override
-	public <T> T querySingle(String sql) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sql);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(sql);
-				rs = pstmt.executeQuery();
-				if(rs!=null){
-					return voWrapper.wrapResultSetSingle(rs, voClass);
-				}else{
-					return null;
-				}				
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public <T> List<T> query(SqlMaker sqlMaker) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sqlMaker);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(sqlMaker.getSql());
-				rs = pstmt.executeQuery();
-				return voWrapper.wrapResultSet(rs, voClass);
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public <T> List<T> query(String sql) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sql);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(sql);
-				rs = pstmt.executeQuery();
-				return voWrapper.wrapResultSet(rs, voClass);
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public <T> T querySingle(SqlMaker sqlMaker, JSONObject confjson) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sqlMaker);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(voFiller.getFilledSql(sqlMaker.getSql(), confjson));
-				rs = pstmt.executeQuery();
+	public <T> T querySingle(String sql) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(sql);
+			rs = pstmt.executeQuery();
+			if (rs != null) {
 				return voWrapper.wrapResultSetSingle(rs, voClass);
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
+			} else {
 				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
 			}
-		}
-	}
-
-	@Override
-	public <T> T querySingle(String sql, JSONObject confjson) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sql);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
 			try {
-				pstmt = conn.prepareStatement(voFiller.getFilledSql(sql, confjson));
-				rs = pstmt.executeQuery();
-				return voWrapper.wrapResultSetSingle(rs, voClass);
+				rs.close();
+				pstmt.close();
+				conn.close();
 			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
+				throw new SQLException(e);
 			}
 		}
 	}
 
 	@Override
-	public <T> List<T> query(SqlMaker sqlMaker, JSONObject confjson) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sqlMaker);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
+	public <T> List<T> query(SqlMaker sqlMaker) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(sqlMaker.getSql());
+			rs = pstmt.executeQuery();
+			return voWrapper.wrapResultSet(rs, voClass);
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
 			try {
-				pstmt = conn.prepareStatement(voFiller.getFilledSql(sqlMaker.getSql(), confjson));
-				rs = pstmt.executeQuery();
-				return voWrapper.wrapResultSet(rs, voClass);
+				rs.close();
+				pstmt.close();
+				conn.close();
 			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
+				throw new SQLException(e);
 			}
 		}
 	}
 
 	@Override
-	public <T> List<T> query(String sql, JSONObject confjson) {
-		if (daoFunc != null) {
-			return daoFunc.querySingle(sql);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
+	public <T> List<T> query(String sql) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(sql);
+			rs = pstmt.executeQuery();
+			return voWrapper.wrapResultSet(rs, voClass);
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
 			try {
-				pstmt = conn.prepareStatement(voFiller.getFilledSql(sql, confjson));
-				rs = pstmt.executeQuery();
-				return voWrapper.wrapResultSet(rs, voClass);
+				rs.close();
+				pstmt.close();
+				conn.close();
 			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return null;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
+				throw new SQLException(e);
 			}
 		}
 	}
 
 	@Override
-	public int execute(String sql) {
-		if (daoFunc != null) {
-			return daoFunc.execute(sql);
-		} else {
-			PreparedStatement pstmt = null;
+	public <T> T querySingle(SqlMaker sqlMaker, Map<String, String> condMap) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(voFiller.getFilledSql(sqlMaker.getSql(), condMap));
+			rs = pstmt.executeQuery();
+			return voWrapper.wrapResultSetSingle(rs, voClass);
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
 			try {
-				pstmt = conn.prepareStatement(sql);
-				return pstmt.executeUpdate();
+				rs.close();
+				pstmt.close();
+				conn.close();
 			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return 0;
-			} finally {
-				try {
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
+				throw new SQLException(e);
 			}
 		}
 	}
 
 	@Override
-	public long count() {
-		if (daoFunc != null) {
-			return daoFunc.count();
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
+	public <T> T querySingle(String sql, Map<String, String> condMap) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(voFiller.getFilledSql(sql, condMap));
+			rs = pstmt.executeQuery();
+			return voWrapper.wrapResultSetSingle(rs, voClass);
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
 			try {
-				pstmt = conn.prepareStatement(SqlC.count(voClass).getSql());
+				rs.close();
+				pstmt.close();
+				conn.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public <T> List<T> query(SqlMaker sqlMaker, Map<String, String> condMap) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(voFiller.getFilledSql(sqlMaker.getSql(), condMap));
+			rs = pstmt.executeQuery();
+			return voWrapper.wrapResultSet(rs, voClass);
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+				conn.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public <T> List<T> query(String sql, Map<String, String> condMap) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(voFiller.getFilledSql(sql, condMap));
+			rs = pstmt.executeQuery();
+			return voWrapper.wrapResultSet(rs, voClass);
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+				conn.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public ResultSet execute(String sql) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		try {
+			pstmt = conn.prepareStatement(sql);
+			return pstmt.executeQuery();
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				pstmt.close();
+				conn.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public long count() throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(SqlC.count(voClass).getSql());
+			rs = pstmt.executeQuery();
+			if (rs.next()) {
+				return rs.getLong(1);
+			}
+			return 0L;
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public long count(String sql) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(sql);
+			rs = pstmt.executeQuery();
+			if (rs.next()) {
+				return rs.getLong(1);
+			}
+			return 0L;
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public long count(SqlMaker sql) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(sql.toString());
+			rs = pstmt.executeQuery();
+			if (rs.next()) {
+				return rs.getLong(1);
+			}
+			return 0L;
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public long count(String sql, Map<String, String> condMap) throws SQLException {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public long count(SqlMaker sql, Map<String, String> condMap) throws SQLException {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	
+	@Override
+	public long fuzzyCount() throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			pstmt = conn.prepareStatement(SqlC.fuzzyCount(voClass).getSql());
+			rs = pstmt.executeQuery();
+			if (rs.next()) {
+				return rs.getLong(1);
+			}
+			return 0L;
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+				conn.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
+		}
+	}
+
+	@Override
+	public long fastCount(int scanSpan, int countOut) throws SQLException {
+		Connection conn = dataSource.getConnection();
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try {
+			SqlC sqlC = SqlC.select(voClass);
+			int count = 1;
+			sqlC.limit(new Pager(count, scanSpan));
+			while (true) {
+				pstmt = conn.prepareStatement(sqlC.getSql());
 				rs = pstmt.executeQuery();
 				if (rs.next()) {
-					return rs.getLong(1);
-				}
-				return 0L;
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return 0L;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public long count(String sql) {
-		if (daoFunc != null) {
-			return daoFunc.count();
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(sql);
-				rs = pstmt.executeQuery();
-				if (rs.next()) {
-					return rs.getLong(1);
-				}
-				return 0L;
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return 0L;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public long count(SqlMaker sql) {
-		if (daoFunc != null) {
-			return daoFunc.count();
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(sql.toString());
-				rs = pstmt.executeQuery();
-				if (rs.next()) {
-					return rs.getLong(1);
-				}
-				return 0L;
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return 0L;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public long fuzzyCount() {
-		if (daoFunc != null) {
-			return daoFunc.fuzzyCount();
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				pstmt = conn.prepareStatement(SqlC.fuzzyCount(voClass).getSql());
-				rs = pstmt.executeQuery();
-				if (rs.next()) {
-					return rs.getLong(1);
-				}
-				return 0L;
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return 0L;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
-				}
-			}
-		}
-	}
-
-	@Override
-	public long fastCount(int scanSpan, int countOut) {
-		if (daoFunc != null) {
-			return daoFunc.fastCount(scanSpan, countOut);
-		} else {
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
-			try {
-				SqlC sqlC = SqlC.select(voClass);
-				int count = 1;
-				sqlC.limit(new Pager(count, scanSpan));
-				while (true) {
-					pstmt = conn.prepareStatement(sqlC.getSql());
-					rs = pstmt.executeQuery();
-					if (rs.next()) {
-						rs.last();
-						int result = rs.getRow();
-logger.debug("debug in fastCount middle count and result : " + count + "," + result);
-						if (result != scanSpan) {
-							return (count - 1) * scanSpan + result;
-						} else {
-							count++;
-							sqlC.limit(new Pager(count, scanSpan));
-						}
-					}
-					if (count > countOut) {
-						return 0L;
+					rs.last();
+					int result = rs.getRow();
+					if (result != scanSpan) {
+						return (count - 1) * scanSpan + result;
+					} else {
+						count++;
+						sqlC.limit(new Pager(count, scanSpan));
 					}
 				}
-			} catch (SQLException e) {
-				logger.error(e.getMessage(), e);
-				return 0L;
-			} finally {
-				try {
-					rs.close();
-					pstmt.close();
-				} catch (SQLException e) {
-					logger.error(e.getMessage(), e);
+				if (count > countOut) {
+					return 0L;
 				}
 			}
+		} catch (SQLException e) {
+			throw new SQLException(e);
+		} finally {
+			try {
+				rs.close();
+				pstmt.close();
+				conn.close();
+			} catch (SQLException e) {
+				throw new SQLException(e);
+			}
 		}
-	}
-
-	/**
-	 * 注销对象时，关闭连接
-	 */
-	@Override
-	public void finalize() throws Throwable {
-		if (conn != null && !conn.isClosed()) {
-			conn.close();
-		}
-		super.finalize();
-	}
-
-	public String wrapSqlString(String sql, JSONObject confjson) {
-		return voFiller.getFilledSql(sql, confjson);
-	}
-
-	public String wrapSqlString(SqlMaker sqlMaker, JSONObject confjson) {
-		return voFiller.getFilledSql(sqlMaker.toString(), confjson);
 	}
 }
