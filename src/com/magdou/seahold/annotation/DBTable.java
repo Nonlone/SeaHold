@@ -33,10 +33,15 @@ public @interface DBTable {
 	 * 自己实现的Vo包装器，实现VoWrapper接口即可
 	 * @return
 	 */
-	public String voWrapper() default "com.seahold.dao.wrapper.impl.DefaultVoWrapper";
+	public String voWrapper() default "com.magdou.seahold.wrapper.impl.DefaultVoWrapper";
 	/**
 	 * 自己实现的Vo填充器，实现VoFiller接口即可
 	 * @return
 	 */
-	public String voFiller() default "com.seahold.dao.filler.impl.DefaultVoFiller";
+	public String voFiller() default "com.magdou.seahold.filler.impl.DefaultVoFiller";
+	/**
+	 * 表路由指向
+	 * @return
+	 */
+	public String tableRote() default "com.magdou.seahold.router.impl.DefaultTableRouter";
 }
