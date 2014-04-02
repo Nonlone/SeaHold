@@ -17,6 +17,7 @@ import com.magdou.seahold.annotation.DBTable;
 import com.magdou.seahold.exception.DataSourceNullException;
 import com.magdou.seahold.filler.VoFiller;
 import com.magdou.seahold.filler.impl.DefaultVoFiller;
+import com.magdou.seahold.sql.DynamicSqlFiller;
 import com.magdou.seahold.sql.SqlMaker;
 import com.magdou.seahold.sql.impl.Pager;
 import com.magdou.seahold.sql.impl.SqlC;
@@ -302,7 +303,7 @@ public class Dao<T> implements DaoFunc {
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try {
-			pstmt = conn.prepareStatement(voFiller.getFilledSql(sqlMaker.getSql(), condMap));
+			pstmt = conn.prepareStatement(DynamicSqlFiller.getTableFilledSql(sqlMaker.getSql(), condMap));
 			rs = pstmt.executeQuery();
 			return voWrapper.wrapResultSetSingle(rs, voClass);
 		} catch (SQLException e) {
@@ -324,7 +325,7 @@ public class Dao<T> implements DaoFunc {
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try {
-			pstmt = conn.prepareStatement(voFiller.getFilledSql(sql, condMap));
+			pstmt = conn.prepareStatement(DynamicSqlFiller.getTableFilledSql(sql, condMap));
 			rs = pstmt.executeQuery();
 			return voWrapper.wrapResultSetSingle(rs, voClass);
 		} catch (SQLException e) {
@@ -346,7 +347,7 @@ public class Dao<T> implements DaoFunc {
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try {
-			pstmt = conn.prepareStatement(voFiller.getFilledSql(sqlMaker.getSql(), condMap));
+			pstmt = conn.prepareStatement(DynamicSqlFiller.getTableFilledSql(sqlMaker.getSql(), condMap));
 			rs = pstmt.executeQuery();
 			return voWrapper.wrapResultSet(rs, voClass);
 		} catch (SQLException e) {
@@ -368,7 +369,7 @@ public class Dao<T> implements DaoFunc {
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try {
-			pstmt = conn.prepareStatement(voFiller.getFilledSql(sql, condMap));
+			pstmt = conn.prepareStatement(DynamicSqlFiller.getTableFilledSql(sql, condMap));
 			rs = pstmt.executeQuery();
 			return voWrapper.wrapResultSet(rs, voClass);
 		} catch (SQLException e) {
